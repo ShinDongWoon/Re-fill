@@ -45,4 +45,4 @@
 
 ---
 
-Copyright (c) 2025 [Your Name or GitHub Username]
+Copyright (c) 2025 [ShinDongWoon]
