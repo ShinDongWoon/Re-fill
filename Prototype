@@ -1,9 +1,9 @@
 // ==UserScript==
-// @name         Re:fill - The Economist Demo
+// @name         Re:fill - The Economist Demo (Position Adjusted)
 // @namespace    http://tampermonkey.net/
-// @version      1.3
-// @description  Injects a contextual AI chat bot into the ad whitespace on The Economist articles.
-// @author       Dongwoon Shin
+// @version      1.6
+// @description  Adjusts the vertical position of the fixed AI chat bot.
+// @author       Alan Turing
 // @match        https://www.economist.com/*/*
 // @connect      generativelanguage.googleapis.com
 // @grant        GM_addStyle
@@ -14,64 +14,44 @@
 (function() {
     'use strict';
 
-    // --- ★★★ 1. 구성(Configuration) ★★★ ---
+    const GEMINI_API_KEY = 'Your_API_KEY';
+    const ARTICLE_CONTAINER_SELECTOR = 'article[data-test-id="Article"]';
+    const SIDEBAR_CONTAINER_SELECTOR = 'div[data-test-id="right-hand-rail-ads"]';
 
-    // Google AI Studio에서 발급받은 당신의 API 키를 여기에 붙여넣으세요.
-    const GEMINI_API_KEY = 'YOUR_API_KEY_HERE';
-
-    // 사용할 Gemini 모델을 지정합니다.
-    const MODEL_NAME = 'gemini-2.5-flash';
-
-    // 새로운 시스템 프롬프트 (AI의 역할 정의)
-    const SYSTEM_PROMPT = "You are a rigorous economist analyzing an article from The Economist. Answer the user's questions about the provided text with precision and an analytical tone. Your answers must be strictly based on the article's content. All responses must be in Korean.";
-
-    // --- 전역 변수 ---
-    const ARTICLE_CONTAINER_SELECTOR = 'div.css-5nzj3w.ei2yr3n1';
-    const AD_CONTAINER_SELECTOR = 'div.adComponent_right__A3uJw';
-    let conversationHistory = []; // 대화 기록을 저장할 배열
-
-    // --- 핵심 로직 ---
     function initializeReFill() {
-        console.log('Re:fill Demo: 초기화 시작 (v1.3)...');
+        console.log('Re:fill Demo: 초기화 시작 (v1.6 - Position Adjusted)...');
         const articleContainer = document.querySelector(ARTICLE_CONTAINER_SELECTOR);
-        const adContainer = document.querySelector(AD_CONTAINER_SELECTOR);
-
-        if (!articleContainer || !adContainer) {
-            console.error('Re:fill Demo: 필수 요소를 찾을 수 없어 실행을 중단합니다.');
-            return;
-        }
-
+        const sidebarContainer = document.querySelector(SIDEBAR_CONTAINER_SELECTOR);
+        if (!articleContainer || !sidebarContainer) { return; }
+        const rect = sidebarContainer.getBoundingClientRect();
+        const sidebarPosition = {
+            top: rect.top + window.scrollY,
+            left: rect.left,
+            width: rect.width,
+            height: rect.height
+        };
+        sidebarContainer.style.display = 'none';
         const articleContext = articleContainer.textContent;
-        console.log('Re:fill Demo: 기사 컨텍스트 추출 완료.');
-        injectUI(articleContext); // UI 주입 시 컨텍스트 전달
-        console.log('Re:fill Demo: UI 주입 완료.');
-
-        const observer = new MutationObserver((mutationsList, observer) => {
-            for(const mutation of mutationsList) {
-                if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-                    const targetElement = mutation.target;
-                    if (targetElement.classList.contains('adComponent_hidden__Dp0GM')) {
-                        targetElement.classList.remove('adComponent_hidden__Dp0GM');
-                    }
-                }
-            }
-        });
-        observer.observe(adContainer, { attributes: true });
-        console.log('Re:fill Demo: 광고 컨테이너에 대한 감시를 시작합니다.');
+        injectFixedUI(articleContext, sidebarPosition);
     }
 
-    function injectUI(context) {
-        const targetElement = document.querySelector(AD_CONTAINER_SELECTOR);
-        targetElement.innerHTML = '';
-        targetElement.style.padding = '10px';
+    // --- ★★★ 1. 위치 조정 로직 ★★★ ---
+    function injectFixedUI(context, position) {
+        const fixedContainer = document.createElement('div');
+        fixedContainer.id = 'refill-fixed-container';
+        fixedContainer.style.position = 'fixed';
+        // 'top' 값을 20px에서 80px로 늘려 헤더 아래에 위치하도록 조정
+        fixedContainer.style.top = '80px';
+        fixedContainer.style.left = `${position.left}px`;
+        fixedContainer.style.width = `${position.width}px`;
+
         const wrapper = document.createElement('div');
         wrapper.id = 'refill-wrapper';
-        // ... (UI 생성 코드는 이전과 거의 동일)
         const header = document.createElement('h3');
-        header.textContent = 'Re:fill AI Economist';
+        header.textContent = 'Keynes';
         const messageArea = document.createElement('div');
         messageArea.id = 'refill-message-area';
-        messageArea.innerHTML = '<div class="refill-message refill-message-ai">The Economist 기사에 대해 무엇이든 질문하십시오. 경제학자의 관점에서 답변해 드리겠습니다.</div>';
+        messageArea.innerHTML = '<div class="refill-message refill-message-ai">안녕하세요! 현재 읽고 계신 기사에 대해 무엇이든 물어보세요.</div>';
         const inputArea = document.createElement('div');
         inputArea.id = 'refill-input-area';
         const textInput = document.createElement('input');
@@ -81,104 +61,96 @@
         const sendButton = document.createElement('button');
         sendButton.textContent = '전송';
         sendButton.id = 'refill-send-button';
+
         inputArea.append(textInput, sendButton);
         wrapper.append(header, messageArea, inputArea);
-        targetElement.append(wrapper);
+        fixedContainer.appendChild(wrapper);
+        document.body.appendChild(fixedContainer);
 
-        // 이벤트 리스너에서 컨텍스트와 함께 handleSend 호출
         sendButton.addEventListener('click', () => handleSend(context));
         textInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                handleSend(context);
-            }
+            if (e.key === 'Enter') handleSend(context);
         });
     }
 
-    // --- ★★★ 2. API 호출 로직 업데이트 ★★★ ---
     function handleSend(context) {
         if (GEMINI_API_KEY === 'YOUR_API_KEY_HERE') {
             alert('오류: 스크립트 상단에 당신의 Gemini API 키를 입력해주세요.');
             return;
         }
         const textInput = document.getElementById('refill-input');
+        const messageArea = document.getElementById('refill-message-area');
         const userQuestion = textInput.value.trim();
         if (!userQuestion) return;
-
-        // UI에 사용자 메시지 표시
-        displayMessage(userQuestion, 'user');
+        const userMessageDiv = document.createElement('div');
+        userMessageDiv.className = 'refill-message refill-message-user';
+        userMessageDiv.textContent = userQuestion;
+        messageArea.appendChild(userMessageDiv);
         textInput.value = '';
-
-        // "생각 중..." 메시지 표시
-        const thinkingMessageId = `thinking-${Date.now()}`;
-        displayMessage('분석 중...', 'ai', thinkingMessageId);
-
-        // 이전 대화 기록에 현재 질문 추가
-        const currentUserContent = {
-            "role": "user",
-            "parts": [{ "text": `Article Text:\n${context}\n\nUser's Question:\n${userQuestion}` }]
-        };
-        const requestContents = [...conversationHistory, currentUserContent];
+        messageArea.scrollTop = messageArea.scrollHeight;
+        const thinkingMessageDiv = document.createElement('div');
+        thinkingMessageDiv.className = 'refill-message refill-message-ai';
+        thinkingMessageDiv.id = 'refill-thinking-message';
+        thinkingMessageDiv.textContent = '생각 중...';
+        messageArea.appendChild(thinkingMessageDiv);
+        messageArea.scrollTop = messageArea.scrollHeight;
 
         GM_xmlhttpRequest({
             method: 'POST',
-            url: `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${GEMINI_API_KEY}`,
-            headers: { 'Content-Type': 'application/json' },
+            url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+            headers: {
+                'Content-Type': 'application/json'
+            },
             data: JSON.stringify({
-                "system_instruction": {
-                    "parts": [{ "text": SYSTEM_PROMPT }]
-                },
-                "contents": requestContents
+                "contents": [{
+                    "parts": [{
+                        "text": `System Prompt:\nYou are "Keynes", a world-class Economist. Your primary function is to answer user questions based on the provided article context. Follow these rules meticulously:\n1. Your answer must be derived **as much as possible** from the information within the "Article Text". \n2. If the answer cannot be found in the article, you have to respond with: "말씀하신 질문은 기사 내용을 벗어납니다.외부 지식을 사용해 답변드리겠습니다." and then respond continously with external knowledge. \n3. Be concise and directly address the user's question. Answer in Korean.\n\nArticle Text:\n${context}\n\nUser's Question:\n${userQuestion}`
+                    }]
+                }]
             }),
             onload: function(response) {
+                const thinkingMsg = document.getElementById('refill-thinking-message');
                 try {
                     const result = JSON.parse(response.responseText);
+                    // Gemini API 에러 응답 처리 로직 추가
+                    if (result.error) {
+                        console.error('Gemini API Error:', result.error.message);
+                        thinkingMsg.textContent = `API 오류가 발생했습니다: ${result.error.message}`;
+                        return;
+                    }
                     const aiResponse = result.candidates[0].content.parts[0].text;
-                    updateMessage(thinkingMessageId, aiResponse); // "생각 중" 메시지를 실제 답변으로 교체
-
-                    // 대화 기록에 사용자 질문과 AI 답변 모두 저장
-                    conversationHistory.push(currentUserContent);
-                    conversationHistory.push(result.candidates[0].content); // 모델의 전체 응답 content 객체 저장
-
+                    thinkingMsg.textContent = aiResponse;
                 } catch (error) {
-                    console.error('Re:fill Demo: API 응답 처리 오류', error, response.responseText);
-                    updateMessage(thinkingMessageId, '죄송합니다, 답변을 처리하는 중 오류가 발생했습니다.');
+                    console.error('Re:fill Demo: API 응답 처리 오류', error);
+                    thinkingMsg.textContent = '죄송합니다, 답변을 처리하는 중 오류가 발생했습니다.';
                 }
+                thinkingMsg.id = '';
             },
             onerror: function(error) {
+                const thinkingMsg = document.getElementById('refill-thinking-message');
                 console.error('Re:fill Demo: API 호출 오류', error);
-                updateMessage(thinkingMessageId, '죄송합니다, API를 호출하는 중 네트워크 오류가 발생했습니다.');
+                thinkingMsg.textContent = '죄송합니다, API를 호출하는 중 네트워크 오류가 발생했습니다.';
+                thinkingMsg.id = '';
             }
         });
     }
 
-    // --- 메시지 표시/업데이트 헬퍼 함수 ---
-    function displayMessage(text, role, id = null) {
-        const messageArea = document.getElementById('refill-message-area');
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `refill-message refill-message-${role}`;
-        messageDiv.textContent = text;
-        if (id) {
-            messageDiv.id = id;
-        }
-        messageArea.appendChild(messageDiv);
-        messageArea.scrollTop = messageArea.scrollHeight;
-        return messageDiv;
-    }
-
-    function updateMessage(id, newText) {
-        const messageDiv = document.getElementById(id);
-        if (messageDiv) {
-            messageDiv.textContent = newText;
-            messageDiv.id = ''; // ID 제거
-        }
-    }
-
-    // --- UI 스타일링 (이전과 동일) ---
+    // --- ★★★ 2. 높이 값 재계산 ★★★ ---
     GM_addStyle(`
-        #refill-wrapper { border: 1px solid #ccc; border-radius: 8px; height: 580px; display: flex; flex-direction: column; font-family: Arial, sans-serif; background-color: #f9f9f9; }
+        #refill-wrapper {
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            /* (화면 전체 높이 - 상단여백 80px - 하단여백 20px) 만큼을 높이로 지정 */
+            height: calc(100vh - 100px);
+            max-height: 850px;
+            display: flex;
+            flex-direction: column;
+            font-family: Arial, sans-serif;
+            background-color: #f9f9f9;
+        }
         #refill-wrapper h3 { padding: 10px 15px; margin: 0; background-color: #eee; border-bottom: 1px solid #ccc; font-size: 16px; border-radius: 8px 8px 0 0; }
         #refill-message-area { flex-grow: 1; padding: 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
-        .refill-message { padding: 8px 12px; border-radius: 15px; max-width: 85%; line-height: 1.4; white-space: pre-wrap; }
+        .refill-message { padding: 8px 12px; border-radius: 15px; max-width: 85%; line-height: 1.4; }
         .refill-message-ai { background-color: #e1e1e1; align-self: flex-start; border-bottom-left-radius: 2px; }
         .refill-message-user { background-color: #007bff; color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
         #refill-input-area { border-top: 1px solid #ccc; display: flex; padding: 10px; }
@@ -187,7 +159,6 @@
         #refill-send-button:hover { background-color: #0056b3; }
     `);
 
-    // --- 실행 ---
-    setTimeout(initializeReFill, 2000);
+    setTimeout(initializeReFill, 1500);
 
 })();
