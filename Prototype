@@ -3,7 +3,7 @@
 // @namespace    http://tampermonkey.net/
 // @version      1.6
 // @description  Adjusts the vertical position of the fixed AI chat bot.
-// @author       Alan Turing
+// @author       Dongwoon Shin
 // @match        https://www.economist.com/*/*
 // @connect      generativelanguage.googleapis.com
 // @grant        GM_addStyle
