@@ -22,7 +22,7 @@
 
 * **실행 환경:** [Tampermonkey](https://www.tampermonkey.net/) (브라우저 유저스크립트)
 * **언어:** JavaScript (ES6+)
-* **핵심 AI 모델:** Google Gemini 1.5 Flash
+* **권장 AI 모델:** Google Gemini 2.5 Flash
 * **API 통신:** `GM_xmlhttpRequest`
 
 ## ⚙️ 설치 및 실행 방법 (Setup)
