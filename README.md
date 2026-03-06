@@ -2,7 +2,7 @@
 
 [![Version](https://img.shields.io/badge/version-2.1.1-blue.svg)](https://github.com/yourusername/refill-keynes)
 [![Platform](https://img.shields.io/badge/platform-Tampermonkey-green.svg)]()
-[![API](https://img.shields.io/badge/AI-Gemini_1.5_Flash-orange.svg)]()
+[![API](https://img.shields.io/badge/AI-Gemini_3.0_Flash-orange.svg)]()
 
 **Re:fill Keynes**는 The Economist, WSJ, FT, NYT 등 주요 경제/시사 매체의 복잡한 웹 환경에서 완벽하게 동작하는 클라이언트 사이드 기반 AI 독서 보조 UserScript입니다. 
 
